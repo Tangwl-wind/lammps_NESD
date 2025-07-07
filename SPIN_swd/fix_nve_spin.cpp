@@ -81,6 +81,7 @@ FixNVESpin::FixNVESpin(LAMMPS *lmp, int narg, char **arg) :
   time_integrate = 1;
   sector_flag = NONE;
   lattice_flag = 1;
+  cutoff_dp = 0.0;
   nlocal_max = 0;
   npairs = 0;
   npairspin = 0;
@@ -117,6 +118,11 @@ FixNVESpin::FixNVESpin(LAMMPS *lmp, int narg, char **arg) :
       else if ((latarg == "yes") || (latarg == "on") || (latarg == "true") || (latarg == "moving"))
         lattice_flag = 1;
       else error->all(FLERR,"Illegal fix/nve/spin command");
+      iarg += 2;
+    } else if (strcmp(arg[iarg],"cutoff") == 0) {
+      if (iarg+2 > narg)
+        error->all(FLERR,"Illegal fix/nve/spin command, error in cutoff parameter");
+      cutoff_dp = utils::numeric(FLERR,arg[iarg+1],false,lmp);
       iarg += 2;
     } else error->all(FLERR,"Illegal fix/nve/spin command");
   }
@@ -330,7 +336,7 @@ void FixNVESpin::init()
 
 /* ---------------------------------------------------------------------- */
 
-void FixNVESpin::initial_integrate(int /*vflag*/)
+void FixNVESpin::initial_integrate(int extend_vflag)
 {
   double dtfm;
   double hbar = force->hplanck/MY_2PI;  // eV/(rad.THz)
@@ -349,6 +355,8 @@ void FixNVESpin::initial_integrate(int /*vflag*/)
   if (igroup == atom->firstgroup) nlocal = atom->nfirst;
   int *type = atom->type;
   int *mask = atom->mask;
+  int eflag = extend_vflag / 10;
+  int vflag = extend_vflag % 10;
   int number_groups = lmp->group->ngroup;
 
   double *group_sums;
@@ -388,6 +396,7 @@ void FixNVESpin::initial_integrate(int /*vflag*/)
       int i = stack_foot[j];
       while (i >= 0) {
         if (mask[i] & groupbit) {
+          ComputeForceDP(eflag, vflag);
           if (x[i][2] > -0.1*2.8465 && x[i][2] < 2.1*2.8465) {   // check if the z value of atom i is above the interface.
             ComputeInteractionsSpin_one_side(i, fmi_one_side);   // compute fmi of spin i with no atoms on its left before spin evolution
             AdvanceSingleSpin_one_side(i, fmi_one_side, &energy_one_side_no_left); // compute one side energy of spin i after evolving with NO atoms on its left
@@ -418,6 +427,7 @@ void FixNVESpin::initial_integrate(int /*vflag*/)
       int i = stack_head[j];
       while (i >= 0) {
         if (mask[i] & groupbit) {
+          ComputeForceDP(eflag, vflag);
           if (x[i][2] > -0.1*2.8465 && x[i][2] < 2.1*2.8465) {   // check if the z value of atom i is above the interface.
             ComputeInteractionsSpin_one_side(i, fmi_one_side);
             AdvanceSingleSpin_one_side(i, fmi_one_side, &energy_one_side_no_left);
@@ -447,6 +457,7 @@ void FixNVESpin::initial_integrate(int /*vflag*/)
     comm->forward_comm();                       // comm. positions of ghost atoms
     for (int i = 0; i < nlocal; i++) {           // advance quarter s for nlocal
       if (mask[i] & groupbit) {
+        ComputeForceDP(eflag, vflag);
         if (x[i][2] > -0.1*2.8465 && x[i][2] < 2.1*2.8465) {   // check if the z value of atom i is above the interface.
           ComputeInteractionsSpin_one_side(i, fmi_one_side);
           AdvanceSingleSpin_one_side(i, fmi_one_side, &energy_one_side_no_left);
@@ -472,6 +483,7 @@ void FixNVESpin::initial_integrate(int /*vflag*/)
     }
     for (int i = nlocal-1; i >= 0; i--) {        // advance quarter s for nlocal
       if (mask[i] & groupbit) {
+        ComputeForceDP(eflag, vflag);
         if (x[i][2] > -0.1*2.8465 && x[i][2] < 2.1*2.8465) {   // check if the z value of atom i is above the interface.
           ComputeInteractionsSpin_one_side(i, fmi_one_side);
           AdvanceSingleSpin_one_side(i, fmi_one_side, &energy_one_side_no_left);
@@ -517,6 +529,7 @@ void FixNVESpin::initial_integrate(int /*vflag*/)
       int i = stack_foot[j];
       while (i >= 0) {
         if (mask[i] & groupbit) {
+          ComputeForceDP(eflag, vflag);
           if (x[i][2] > -0.1*2.8465 && x[i][2] < 2.1*2.8465) {   // check if the z value of atom i is above the interface.
             ComputeInteractionsSpin_one_side(i, fmi_one_side);
             AdvanceSingleSpin_one_side(i, fmi_one_side, &energy_one_side_no_left);
@@ -547,6 +560,7 @@ void FixNVESpin::initial_integrate(int /*vflag*/)
       int i = stack_head[j];
       while (i >= 0) {
         if (mask[i] & groupbit) {
+          ComputeForceDP(eflag, vflag);
           if (x[i][2] > -0.1*2.8465 && x[i][2] < 2.1*2.8465) {   // check if the z value of atom i is above the interface.
             ComputeInteractionsSpin_one_side(i, fmi_one_side);
             AdvanceSingleSpin_one_side(i, fmi_one_side, &energy_one_side_no_left);
@@ -576,6 +590,7 @@ void FixNVESpin::initial_integrate(int /*vflag*/)
     comm->forward_comm();                       // comm. positions of ghost atoms
     for (int i = 0; i < nlocal; i++) {          // advance quarter s for nlocal-1
       if (mask[i] & groupbit) {
+        ComputeForceDP(eflag, vflag);
         if (x[i][2] > -0.1*2.8465 && x[i][2] < 2.1*2.8465) {   // check if the z value of atom i is above the interface.
           ComputeInteractionsSpin_one_side(i, fmi_one_side);
           AdvanceSingleSpin_one_side(i, fmi_one_side, &energy_one_side_no_left);
@@ -601,6 +616,7 @@ void FixNVESpin::initial_integrate(int /*vflag*/)
     }
     for (int i = nlocal-1; i >= 0; i--) {       // advance quarter s for nlocal-1
       if (mask[i] & groupbit) {
+        ComputeForceDP(eflag, vflag);
         if (x[i][2] > -0.1*2.8465 && x[i][2] < 2.1*2.8465) {   // check if the z value of atom i is above the interface.
           ComputeInteractionsSpin_one_side(i, fmi_one_side);
           AdvanceSingleSpin_one_side(i, fmi_one_side, &energy_one_side_no_left);
@@ -841,18 +857,21 @@ void FixNVESpin::sectoring()
   const double rsy = subhi[1] - sublo[1];
   const double rsz = subhi[2] - sublo[2];
 
-  // extract larger cutoff from PairSpin styles
+  // determine cutoff distance
 
-  double rv, cutoff;
-  rv = cutoff = 0.0;
-  int dim = 0;
-  for (int i = 0; i < npairspin ; i++) {
-    cutoff = *((double *) spin_pairs[i]->extract("cut",dim));
-    rv = MAX(rv,cutoff);
+  double rv = 0.0;
+  if (cutoff_dp > 0.0) {
+    rv = cutoff_dp;
+  } else {
+    double cutoff = 0.0;
+    int dim = 0;
+    for (int i = 0; i < npairspin ; i++) {
+      cutoff = *((double *) spin_pairs[i]->extract("cut",dim));
+      rv = MAX(rv,cutoff);
+    }
+    if (rv == 0.0)
+      error->all(FLERR,"Illegal sectoring operation");
   }
-
-  if (rv == 0.0)
-   error->all(FLERR,"Illegal sectoring operation");
 
   double rax = rsx/rv;
   double ray = rsy/rv;
@@ -1073,4 +1092,51 @@ void FixNVESpin::final_integrate()
       }
     }
   }
+}
+
+/* ----------------------------------------------------------------------
+   compute f and fm by DeePMD before advancing spin
+------------------------------------------------------------------------- */
+
+void FixNVESpin::ComputeForceDP(int eflag, int vflag)
+{
+  size_t nbytes;
+  int nlocal = atom->nlocal;
+  if (neighbor->includegroup == 0) {
+    nbytes = sizeof(double) * nlocal;
+    if (force->newton)
+      nbytes += sizeof(double) * atom->nghost;
+    if (nbytes) {
+      if (atom->torque_flag)
+        memset(&atom->torque[0][0],0,3*nbytes);
+      atom->avec->force_clear(0,nbytes);
+    }
+  }
+  else {
+    nbytes = sizeof(double) * atom->nfirst;
+    if (nbytes) {
+      if (atom->torque_flag)
+        memset(&atom->torque[0][0],0,3*nbytes);
+      atom->avec->force_clear(0,nbytes);
+    }
+    if (force->newton) {
+      nbytes = sizeof(double) * atom->nghost;
+      if (nbytes) {
+        if (atom->torque_flag)
+          memset(&atom->torque[0][0],0,3*nbytes);
+        atom->avec->force_clear(nlocal,nbytes);
+      }
+    }
+  }
+
+  if (modify->n_pre_force)
+    modify->pre_force(vflag);
+
+  force->pair->compute(eflag,vflag);
+
+  if (modify->n_pre_reverse)
+    modify->pre_reverse(eflag,vflag);
+
+  if (modify->n_post_force_any)
+    modify->post_force(vflag);
 }
