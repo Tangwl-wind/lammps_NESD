@@ -2,7 +2,7 @@
 /* ----------------------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   Steve Plimpton, sjplimp@sandia.gov
+   LAMMPS development team: developers@lammps.org
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -358,6 +358,88 @@ void PairSpinExchange::compute_single_pair(int ii, double fmi[3])
     }
   }
 }
+
+/// Added by Weidi: update the pair interactions fmi acting on the spin ii from one side (z > 14.9*2.8465) ///////////////////////////////////////////
+
+
+void PairSpinExchange::compute_single_pair_one_side(int ii, double fmi[3], double z_interface)
+{
+  int *type = atom->type;
+  double **x = atom->x;
+  double **sp = atom->sp;
+  double local_cut2;
+  double xi[3];
+  double delx,dely,delz;
+  double spj[3];
+
+  int j,jnum,itype,jtype,ntypes;
+  int k,locflag;
+  int *jlist,*numneigh,**firstneigh;
+
+  double rsq;
+
+  numneigh = list->numneigh;
+  firstneigh = list->firstneigh;
+
+  // check if interaction applies to type of ii
+
+  itype = type[ii];
+  ntypes = atom->ntypes;
+  locflag = 0;
+  k = 1;
+  while (k <= ntypes) {
+    if (k <= itype) {
+      if (setflag[k][itype] == 1) {
+        locflag =1;
+        break;
+      }
+      k++;
+    } else if (k > itype) {
+      if (setflag[itype][k] == 1) {
+        locflag =1;
+        break;
+      }
+      k++;
+    } else error->all(FLERR,"Wrong type number");
+  }
+
+  // if interaction applies to type ii,
+  // locflag = 1 and compute pair interaction
+
+  if (locflag == 1) {
+
+    xi[0] = x[ii][0];
+    xi[1] = x[ii][1];
+    xi[2] = x[ii][2];
+
+    jlist = firstneigh[ii];
+    jnum = numneigh[ii];
+
+    for (int jj = 0; jj < jnum; jj++) {
+
+      j = jlist[jj];
+      j &= NEIGHMASK;
+      if (x[j][2] > z_interface) {   /// added by Weidi
+        jtype = type[j];
+        local_cut2 = cut_spin_exchange[itype][jtype]*cut_spin_exchange[itype][jtype];
+
+        spj[0] = sp[j][0];
+        spj[1] = sp[j][1];
+        spj[2] = sp[j][2];
+
+        delx = xi[0] - x[j][0];
+        dely = xi[1] - x[j][1];
+        delz = xi[2] - x[j][2];
+        rsq = delx*delx + dely*dely + delz*delz;
+
+        if (rsq <= local_cut2) {
+          compute_exchange(ii,j,rsq,fmi,spj);
+        }
+      }
+    }
+  }
+}
+
 
 /* ----------------------------------------------------------------------
    compute exchange interaction between spins i and j

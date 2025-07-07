@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   Steve Plimpton, sjplimp@sandia.gov
+   LAMMPS development team: developers@lammps.org
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -35,10 +35,14 @@ class FixNVESpin : public Fix {
   void initial_integrate(int) override;
   void final_integrate() override;
 
-  void ComputeInteractionsSpin(int);    // compute and advance single spin functions
-  void ComputeForceDP(int, int);
+  // Modified by Weidi
+  void ComputeInteractionsSpin(int, double *);    // compute and advance single spin functions
+  void ComputeInteractionsSpin_one_side(int, double *);
   void AdvanceSingleSpin(int);
-
+  void AdvanceSingleSpin_no_langevin(int, double *, double *);
+  void AdvanceSingleSpin_one_side(int, double *, double *);
+  //
+  
   void sectoring();    // sectoring operation functions
   int coords2sector(double *);
 
@@ -86,7 +90,6 @@ class FixNVESpin : public Fix {
 
   // sectoring variables
 
-  double cutoff_dp;
   int nsectors;
   double *rsec;
 
