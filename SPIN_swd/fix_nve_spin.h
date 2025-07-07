@@ -41,6 +41,7 @@ class FixNVESpin : public Fix {
   void AdvanceSingleSpin(int);
   void AdvanceSingleSpin_no_langevin(int, double *, double *);
   void AdvanceSingleSpin_one_side(int, double *, double *);
+  void ComputeForceDP(int, int);
   //
   
   void sectoring();    // sectoring operation functions
@@ -90,6 +91,7 @@ class FixNVESpin : public Fix {
 
   // sectoring variables
 
+  double cutoff_dp;
   int nsectors;
   double *rsec;
 
