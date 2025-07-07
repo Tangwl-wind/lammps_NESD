@@ -1,7 +1,7 @@
 /* -*- c++ -*- ----------------------------------------------------------
    LAMMPS - Large-scale Atomic/Molecular Massively Parallel Simulator
    https://www.lammps.org/, Sandia National Laboratories
-   Steve Plimpton, sjplimp@sandia.gov
+   LAMMPS development team: developers@lammps.org
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
@@ -35,6 +35,7 @@ class PairSpinExchange : public PairSpin {
 
   void compute(int, int) override;
   void compute_single_pair(int, double *) override;
+  void compute_single_pair_one_side(int, double *, double)override;  /// added by Weidi
 
   void compute_exchange(int, int, double, double *, double *);
   void compute_exchange_mech(int, int, double, double *, double *, double *, double *);
